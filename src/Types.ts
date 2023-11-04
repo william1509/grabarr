@@ -14,7 +14,7 @@ export interface Media {
     originalTitle?:   string;
     overview:         string;
     popularity:       number;
-    releaseDate?:     Date;
+    releaseDate?:     string;
     title?:           string;
     video?:           boolean;
     voteAverage:      number;
@@ -32,7 +32,7 @@ export enum MediaType {
     Tv = "tv",
 }
 
-interface FormFields {
+export interface FormFields {
     jellyseerrAddress?: string,
     jellyseerrKey?: string,
   }

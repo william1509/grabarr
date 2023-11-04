@@ -1,4 +1,5 @@
 import browser from "webextension-polyfill";
+import { FormFields } from "./types";
 
 chrome.contextMenus.removeAll();
 chrome.contextMenus.create({
@@ -56,17 +57,19 @@ chrome.contextMenus.onClicked.addListener(function(info, tab) {
       },
     })
     .then((response) => {
+      console.log("Sent request to " + `${connection.jellyseerrAddress}/api/v1/search?` + new URLSearchParams(params))
       if (response.status !== 200) {
         console.log('Looks like there was a problem. Status Code: ' + response.status);
       } else {
-        chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
-          if (tabs.length > 0 && tabs[0].id) {
-            chrome.tabs.sendMessage(tabs[0].id, { type: "show_popup", body: response }, (response) => {
-              console.log("Received response from content script", response);
-            });          
-          }
+        response.json().then((data) => {
+          chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
+            if (tabs.length > 0 && tabs[0].id) {
+              chrome.tabs.sendMessage(tabs[0].id, { type: "show_popup", body: data }, (response) => {
+                console.log("Received response from content script", response);
+              });          
+            }
+          });
         });
-        
       }
     }).catch((err) => {
       console.log(err);

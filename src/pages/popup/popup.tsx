@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
-import "./Popup.css";
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
+import { Button, Container, Paper, Stack, Zoom } from "@mui/material";
 import Box from "@mui/material/Box";
 import TextField from "@mui/material/TextField";
-import { Button, Container, Paper, Stack, Zoom } from "@mui/material";
-import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
+import { useEffect, useState } from 'react';
+import { FormFields } from '../../types';
+import "./Popup.css";
 
 export default function() {
   const [formData, setFormData] = useState<FormFields>({

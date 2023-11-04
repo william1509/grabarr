@@ -1,0 +1,19 @@
+.image-list {
+    background-color: black;
+}
+
+.MuiImageListItemBar-title {
+    padding: 5%;
+}
+
+.MuiImageListItemBar-subtitle {
+    padding: 5%;
+}
+
+.MuiImageListItemBar-root {
+    padding: 10% 0 0 0;
+    width: 100%;
+}
+.MuiImageListItem-img {
+    width: fit-content;
+}
