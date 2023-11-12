@@ -1,60 +1,59 @@
-import ImageListItem from "@mui/material/ImageListItem";
-import "./media-selection.css";
+import { useTheme } from "@emotion/react";
+import {
+  Paper,
+  ThemeOptions,
+} from "@mui/material";
 import ImageList from "@mui/material/ImageList";
-import ImageListItemBar from "@mui/material/ImageListItemBar";
-import { Media, SearchResult } from "../../types";
-import { IconButton, Paper } from "@mui/material";
-import InfoIcon from "@mui/icons-material/Info";
+import { MediaResult, MessagePayload, SearchResult } from "../../types";
+import MovieCard from "../movie-card/movie-card";
+import TvShowCard from "../tvshow-card/tvshow-card";
+import "./media-selection.css";
+import { MovieResult, TvResult } from "../../schemas";
 
-export default function MediaSelection({
-  response,
-}: {
-  response: SearchResult;
-}) {
+const MediaSelection: React.FC<{ item: SearchResult }> = (props) => {
+  const theme: ThemeOptions = useTheme();
+  // const [mediaAvailability, setMediaAvailability] = React.useState<RequestResponse[]>([]);
 
-  const downloadClicked = (item: Media) => {
-    console.log("download clicked", item)
-  }
+  const downloadClicked = (item: MediaResult) => {
+    chrome.runtime.sendMessage(
+      { type: "request", body: item },
+      (response: MessagePayload) => {
+        console.log("Received message from background script!", response);
+      }
+    );
+  };
 
   return (
     <Paper
-      style={{ backgroundColor: "white", padding: "10px" }}
+      style={{
+        padding: "10px",
+        backgroundColor: theme.palette?.background?.paper,
+      }}
     >
       <ImageList
         className="image-list"
-        cols={response.results.length}
-        sx={{ width: 300, height: "fit-content", backgroundColor: "white", margin: "1em" }}
+        cols={props.item.results.length}
+        sx={{
+          width: "fit-content",
+          maxWidth: 300,
+          height: "fit-content",
+          margin: "0.5em",
+        }}
         gap={8}
       >
-        {response.results.map((item) => (
-          <ImageListItem 
-            key={item.id}
-            style={{ backgroundColor: "white" }}  
-          >
-            <img
-              srcSet={`https://www.themoviedb.org/t/p/w154/${item.posterPath}`}
-              src={`https://www.themoviedb.org/t/p/w154/${item.posterPath}`}
-              alt={item.title}
-              loading="lazy"
-            />
-            <ImageListItemBar
-              title={item.title}
-              subtitle={<span>{item.releaseDate}</span>}
-              position="below"
-              style={{ width: 154 }}
-              actionIcon={
-                <IconButton
-                  color="primary"
-                  aria-label={`info about ${item.title}`}
-                  onClick={() => downloadClicked(item)}
-                >
-                  <InfoIcon />
-                </IconButton>
-              }
-            />
-          </ImageListItem>
-        ))}
+        {props.item.results.map((item) => {
+          switch (item.mediaType) {
+            case "tv":
+              return <TvShowCard key={item.id} item={item as TvResult} />;
+            case "movie":
+              return <MovieCard key={item.id} item={item as MovieResult} />;
+            default:
+              console.log("Unknown media type", item);
+          }
+        })}
       </ImageList>
     </Paper>
   );
-}
+};
+
+export default MediaSelection;

@@ -1,10 +1,11 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import MediaSelection from "./pages/media-selection/media-selection";
-import { ThemeProvider } from "@mui/material";
+import { CssBaseline, ThemeProvider } from "@mui/material";
 import theme from "./theme";
 import createCache from "@emotion/cache";
 import { CacheProvider } from "@emotion/react";
+import { MessagePayload, MessageStatus } from "./types";
 
 let mousePosition = { x: 0, y: 0 };
 document.addEventListener("mousemove", (e: MouseEvent) => {
@@ -50,21 +51,26 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
       shadow.appendChild(newElem);
       shadow.appendChild(emotionRoot);
       document.addEventListener("mousedown", (event) =>
-        handleClickOutside(event, newElem)
+        handleClickOutside(event, container)
       );
 
       ReactDOM.createRoot(newElem).render(
         <React.StrictMode>
           <CacheProvider value={cache}>
             <ThemeProvider theme={theme}>
-              <MediaSelection response={message.body} />
+              <CssBaseline />
+              <MediaSelection item={message.body} />
             </ThemeProvider>
           </CacheProvider>
         </React.StrictMode>
       );
       document.body.appendChild(container);
-
-      sendResponse("here");
+      const response: MessagePayload = {
+        type: "show_popup",
+        status: MessageStatus.OK,
+        body: "",
+      };
+      sendResponse(response);
       break;
     default:
       console.log("unknown message type", message.type);

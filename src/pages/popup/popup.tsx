@@ -3,7 +3,7 @@ import { Button, Container, Paper, Stack, Zoom } from "@mui/material";
 import Box from "@mui/material/Box";
 import TextField from "@mui/material/TextField";
 import { useEffect, useState } from 'react';
-import { FormFields } from '../../types';
+import { FormFields, MessagePayload } from '../../schemas';
 import "./Popup.css";
 
 export default function() {
@@ -15,12 +15,12 @@ export default function() {
   const [connectSuccessful, setConnectSuccessful] = useState<boolean>(false);
 
   useEffect(() => {
-    chrome.runtime.sendMessage({type: "get_connection"}, (response) => {
-      const validationErrors: FormFields = response;
+    chrome.runtime.sendMessage({type: "get_connection"}, (response: MessagePayload) => {
+      const validationErrors: FormFields = response.body;
       if (validationErrors === undefined || validationErrors === null) {
         return;
       }
-      setFormData(response);
+      setFormData(validationErrors);
     });
   }, []);
 
@@ -71,7 +71,7 @@ export default function() {
         setConnectSuccessful(false);
         setErrors(validationErrors);
       });
-      chrome.runtime.sendMessage({type: "set_connection", body: formData}, (response) => {
+      chrome.runtime.sendMessage({type: "set_connection", body: formData}, (response: MessagePayload) => {
         console.log(response);
       });
 

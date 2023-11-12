@@ -1,38 +1,29 @@
-export interface SearchResult {
-    page:         number;
-    totalPages:   number;
-    totalResults: number;
-    results:      Media[];
-}
-
-export interface Media {
-    id:               number;
-    mediaType:        MediaType;
-    adult?:           boolean;
-    genreIds:         number[];
-    originalLanguage: string;
-    originalTitle?:   string;
-    overview:         string;
-    popularity:       number;
-    releaseDate?:     string;
-    title?:           string;
-    video?:           boolean;
-    voteAverage:      number;
-    voteCount:        number;
-    backdropPath:     null | string;
-    posterPath:       string;
-    firstAirDate?:    Date;
-    name?:            string;
-    originCountry?:   string[];
-    originalName?:    string;
-}
-
-export enum MediaType {
-    Movie = "movie",
-    Tv = "tv",
-}
+import { MovieResult, PersonResult, TvResult } from "./schemas";
 
 export interface FormFields {
-    jellyseerrAddress?: string,
-    jellyseerrKey?: string,
-  }
+  jellyseerrAddress?: string;
+  jellyseerrKey?: string;
+}
+
+export interface MessagePayload {
+  type: string;
+  status: MessageStatus;
+  body: any;
+}
+
+export enum MessageStatus {
+  OK = "OK",
+  ERROR = "ERROR",
+}
+
+export type MediaResult = MovieResult | TvResult | PersonResult;
+
+export interface SearchResult<T = MediaResult> {
+  page: number;
+  totalPages: number;
+  totalResults: number;
+  results: T[];
+}
+
+
+
