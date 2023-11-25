@@ -52,11 +52,17 @@ const MovieCard: React.FC<{ item: MovieResult }> = (props) => {
       <ImageListItemBar
         title={
           // <Tooltip title={item.mediaType === 'movie' ? item.title : item.name}>
-          <Typography variant="body1">{props.item.title}</Typography>
+          <Typography 
+            variant="subtitle1"
+            whiteSpace={'normal'}
+          >{props.item.title}</Typography>
           // </Tooltip>
         }
         subtitle={
-          <Typography variant="body1">{props.item.releaseDate}</Typography>
+          <Typography 
+            variant="caption"
+            whiteSpace={'normal'}
+          >{props.item.releaseDate}</Typography>
         }
         position="below"
         style={{ width: 154 }}

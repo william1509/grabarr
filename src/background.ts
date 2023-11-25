@@ -56,7 +56,9 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
         languageProfileId: 0,
         userId: 0
       }
-      fetch(`${connection.jellyseerrAddress}/api/v1/request?`, {
+
+      // fetch(`${connection.jellyseerrAddress}/api/v1/request`, {
+      fetch(`https://8078026c-8a0d-4d65-975b-6340f2aae1cb.mock.pstmn.io/api/v1/request`, {
         method: 'POST',
         body: JSON.stringify(body),
         headers: {
@@ -69,7 +71,7 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
         },
       })
       .then((response: Response) => {
-        console.log("Sent request to " + `${connection.jellyseerrAddress}/api/v1/request?`)
+        console.log("Sent request to " + `${connection.jellyseerrAddress}/api/v1/request`)
         if (response.status !== 200) {
           console.log('Looks like there was a problem. Status Code: ' + response.status);
         } else {

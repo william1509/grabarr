@@ -52,11 +52,11 @@ const TvShowCard: React.FC<{ item: TvResult }> = (props) => {
       <ImageListItemBar
         title={
           // <Tooltip title={item.mediaType === 'movie' ? item.title : item.name}>
-          <Typography variant="body1">{props.item.name}</Typography>
+          <Typography variant="body2">{props.item.name}</Typography>
           // </Tooltip>
         }
         subtitle={
-          <Typography variant="body1">{props.item.firstAirDate}</Typography>
+          <Typography variant="body2">{props.item.firstAirDate}</Typography>
         }
         position="below"
         style={{ width: 154 }}

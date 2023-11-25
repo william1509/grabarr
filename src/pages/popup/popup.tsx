@@ -3,8 +3,8 @@ import { Button, Container, Paper, Stack, Zoom } from "@mui/material";
 import Box from "@mui/material/Box";
 import TextField from "@mui/material/TextField";
 import { useEffect, useState } from 'react';
-import { FormFields, MessagePayload } from '../../schemas';
 import "./Popup.css";
+import { FormFields, MessagePayload } from '../../types';
 
 export default function() {
   const [formData, setFormData] = useState<FormFields>({
@@ -105,7 +105,7 @@ export default function() {
         label="Jellyseerr Address"
         margin="normal"
         fullWidth={true}
-        variant="outlined"
+        color='primary'
         error={Boolean(errors.jellyseerrAddress)}
         helperText={errors.jellyseerrAddress || ''}
         value={formData.jellyseerrAddress || ''}
@@ -114,8 +114,8 @@ export default function() {
       <TextField
         name="jellyseerrKey"
         label="Jellyseerr API Key"
-        variant="outlined"
         margin="normal"
+        color='primary'
         fullWidth={true}
         error={Boolean(errors.jellyseerrKey)}
         helperText={errors.jellyseerrKey || ''}
