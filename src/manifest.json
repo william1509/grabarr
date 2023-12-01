@@ -21,7 +21,8 @@
   "permissions": [
     "storage",
     "contextMenus",
-    "activeTab"
+    "activeTab",
+    "background"
   ],
   "host_permissions": ["<all_urls>"],
   "content_scripts": [

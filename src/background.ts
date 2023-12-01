@@ -1,12 +1,10 @@
-import browser from "webextension-polyfill";
 import { MediaRequest } from "./schemas";
-import { FormFields, MediaResult, MessagePayload, MessageStatus, SearchResult } from "./types";
-
+import { FormFields, MediaRepository, MediaResult, MessagePayload, MessageStatus, SearchResult } from "./types";
 
 chrome.contextMenus.removeAll();
 chrome.contextMenus.create({
-  title: "first",
-  id: "test",
+  title: "Search",
+  id: "search",
   contexts: ["selection"],
 });
 
@@ -14,86 +12,146 @@ let connection: FormFields = {
   jellyseerrAddress: "",
   jellyseerrKey: "",
 };
+let pagingOffset: string = "0";
+
+const headers = () => {
+  return {
+    "X-Api-Key": `${connection.jellyseerrKey}`,
+    Accept: "application/json, text/plain, */*",
+    "Content-Type": "application/json;charset=UTF-8",
+    "Sec-Fetch-Dest": "empty",
+    "Sec-Fetch-Mode": "no-cors",
+    "Sec-Fetch-Site": "same-origin",
+  };
+};
 
 chrome.storage.sync.get("credentials", (data) => {
-  console.log("Initial data loaded", data)
+  console.log("Initial data loaded", data);
   connection = data["credentials"];
 });
 
-chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
+chrome.runtime.onStartup.addListener(async () => {
+  console.log("onStartup");
+  chrome.storage.sync.get("offset", (data) => {
+    console.log("Media paging offset found: ", data);
+    pagingOffset = data["offset"];
+  });
+  const params = {
+    take: "9999",
+    filter: "all",
+    sort: "added",
+    skip: pagingOffset || "0",
+  };
+  // fetch(`${connection.jellyseerrAddress}/api/v1/request`, {
+  const response = await fetch(`${connection.jellyseerrAddress}/api/v1/media` + new URLSearchParams(params), {
+    method: "GET",
+    headers: headers(),
+  });
+  console.log("Sent request to " + `${connection.jellyseerrAddress}/api/v1/request`);
+  if (response.status !== 200) {
+    console.log("Looks like there was a problem. Status Code: " + response.status);
+  } else {
+    const data: MediaRepository = await response.json();
+    console.log(data);
+  }
+});
+
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   switch (message.type) {
-    case "get_connection":
-      var response: MessagePayload = {
+    case "get_connection": {
+      const response: MessagePayload = {
         type: "get_connection",
         status: MessageStatus.OK,
         body: connection,
-      }      
+      };
       sendResponse(response);
       break;
-    case "set_connection":
-      chrome.storage.sync.set({ "credentials": message.body }, () => {
-        console.log('User Preferences Updated:', message.body);
+    }
+    case "status": {
+      getStatus(sendResponse);
+      return true;
+    }
+    case "set_connection": {
+      chrome.storage.sync.set({ credentials: message.body }, () => {
+        console.log("Jellyseerr connection updated:", message.body);
+        connection = message.body;
       });
-      connection = message.body;
-      var response: MessagePayload = {
-        type: "set_connection",
-        status: MessageStatus.OK,
-        body: connection,
-      }
-      sendResponse(response);
-      break;
-    case "request":
-      const info: MediaResult = message.body;
-      const body = {
-        mediaType: info.mediaType,
-        mediaId: info.id,
-        tvdbId: 0,
-        seasons: [],
-        is4k: false,
-        serverId: 0,
-        profileId: 0,
-        rootFolder: "",
-        languageProfileId: 0,
-        userId: 0
-      }
+      getStatus(sendResponse);
+      return true;
+    }
 
-      // fetch(`${connection.jellyseerrAddress}/api/v1/request`, {
-      fetch(`https://8078026c-8a0d-4d65-975b-6340f2aae1cb.mock.pstmn.io/api/v1/request`, {
-        method: 'POST',
-        body: JSON.stringify(body),
-        headers: {
-          'X-Api-Key': `${connection.jellyseerrKey}`,
-          'Accept': 'application/json, text/plain, */*',
-          'Content-Type': 'application/json;charset=UTF-8',
-          'Sec-Fetch-Dest': 'empty',
-          'Sec-Fetch-Mode': 'no-cors',
-          'Sec-Fetch-Site': 'same-origin'
-        },
-      })
-      .then((response: Response) => {
-        console.log("Sent request to " + `${connection.jellyseerrAddress}/api/v1/request`)
-        if (response.status !== 200) {
-          console.log('Looks like there was a problem. Status Code: ' + response.status);
-        } else {
-          response.json().then((data: MediaRequest) => {
-            var response: MessagePayload = {
-              type: "request",
-              status: MessageStatus.OK,
-              body: data,
-            }
-            sendResponse(response);
-          });
-        }
-      }).catch((err) => {
-        console.log(err);
-      });
+    case "request": {
+      sendRequest(message.body, sendResponse);
+      return true;
+    }
+
     default:
       console.log("unknown message type", message.type);
   }
 });
 
-chrome.contextMenus.onClicked.addListener(function(info, tab) {
-  if (info.menuItemId == "test") {
+const getStatus = async (sendResponse: (response?: MessagePayload) => void) => {
+  const response = await fetch(`${connection.jellyseerrAddress}/api/v1/status`, {
+    method: "GET",
+    headers: headers(),
+  });
+  let payload: MessagePayload = {
+    type: "status",
+    status: MessageStatus.OK,
+    body: connection,
+  };
+  if (!response.ok) {
+    payload.status = MessageStatus.ERROR;
+    console.log(`Looks like there was a problem. Status Code:  ${response.status}`);
+  }
+  sendResponse(payload);
+  //   .catch((err) => {
+  //     console.log("Fetch Error :-S", err);
+  //     let payload: MessagePayload = {
+  //       type: "status",
+  //       status: MessageStatus.ERROR,
+  //       body: connection,
+  //     };
+  //     sendResponse(payload);
+  //   });
+};
+
+const sendRequest = async (info: MediaResult, sendResponse: (response?: MessagePayload) => void) => {
+  const body = {
+    mediaType: info.mediaType,
+    mediaId: info.id,
+    tvdbId: 0,
+    seasons: [],
+    is4k: false,
+    serverId: 0,
+    profileId: 0,
+    rootFolder: "",
+    languageProfileId: 0,
+    userId: 0,
+  };
+
+  // fetch(`${connection.jellyseerrAddress}/api/v1/request`, {
+  const response: Response = await fetch(`https://8078026c-8a0d-4d65-975b-6340f2aae1cb.mock.pstmn.io/api/v1/request`, {
+    method: "POST",
+    body: JSON.stringify(body),
+    headers: headers(),
+  });
+  console.log(`Sent request to ${connection.jellyseerrAddress}/api/v1/request`);
+  if (!response.ok) {
+    console.log(`Looks like there was a problem. Status Code: ${response.status}`);
+  } else {
+    const data: MediaRequest = await response.json();
+    let payload: MessagePayload = {
+      type: "request",
+      status: MessageStatus.OK,
+      body: data,
+    };
+    sendResponse(payload);
+  }
+};
+
+chrome.contextMenus.onClicked.addListener(async (info, tab) => {
+  if (info.menuItemId == "search") {
     if (info.selectionText === "" || connection.jellyseerrAddress === "" || connection.jellyseerrKey === "") {
       return;
     }
@@ -104,34 +162,24 @@ chrome.contextMenus.onClicked.addListener(function(info, tab) {
       query: info.selectionText?.trim().split(" ").join("+"),
       page: "1",
       language: "en",
-    }
-    fetch(`${connection.jellyseerrAddress}/api/v1/search?` + new URLSearchParams(params), {
-      method: 'GET',
-      headers: {
-        'X-Api-Key': `${connection.jellyseerrKey}`,
-        'Accept': 'application/json, text/plain, */*',
-        'Sec-Fetch-Dest': 'empty',
-        'Sec-Fetch-Mode': 'no-cors',
-        'Sec-Fetch-Site': 'same-origin'
-      },
-    })
-    .then((response) => {
-      console.log("Sent request to " + `${connection.jellyseerrAddress}/api/v1/search?` + new URLSearchParams(params))
-      if (response.status !== 200) {
-        console.log('Looks like there was a problem. Status Code: ' + response.status);
-      } else {
-        response.json().then((data: SearchResult) => {
-          chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
-            if (tabs.length > 0 && tabs[0].id) {
-              chrome.tabs.sendMessage(tabs[0].id, { type: "show_popup", body: data }, (response) => {
-                console.log(response);
-              });          
-            }
-          });
-        });
-      }
-    }).catch((err) => {
-      console.log(err);
+    };
+    const response = await fetch(`${connection.jellyseerrAddress}/api/v1/search?` + new URLSearchParams(params), {
+      method: "GET",
+      headers: headers(),
     });
+
+    console.log(`Sent request to ${connection.jellyseerrAddress}/api/v1/search?` + new URLSearchParams(params));
+    if (!response.ok) {
+      console.log("Looks like there was a problem. Status Code: " + response.status);
+    } else {
+      const data: SearchResult = await response.json();
+      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        if (tabs.length > 0 && tabs[0].id) {
+          chrome.tabs.sendMessage(tabs[0].id, { type: "show_popup", body: data }, (response) => {
+            console.log(response);
+          });
+        }
+      });
+    }
   }
 });

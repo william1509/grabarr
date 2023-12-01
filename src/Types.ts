@@ -1,4 +1,4 @@
-import { MovieResult, PersonResult, TvResult } from "./schemas";
+import { MediaInfo, MovieResult, PageInfo, PersonResult, TvResult } from "./schemas";
 
 export interface FormFields {
   jellyseerrAddress?: string;
@@ -25,5 +25,7 @@ export interface SearchResult<T = MediaResult> {
   results: T[];
 }
 
-
-
+export interface MediaRepository {
+  pageInfo: PageInfo;
+  results: MediaInfo[];
+}
