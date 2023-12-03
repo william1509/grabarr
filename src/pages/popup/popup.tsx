@@ -6,7 +6,7 @@ import TextField from "@mui/material/TextField";
 import { useEffect, useState } from "react";
 import "./Popup.css";
 import { FormFields, MessagePayload, MessageStatus } from "../../types";
-import Test from "../../components/styled-menu/styled-menu";
+import CustomizedMenus from "../../components/styled-menu/styled-menu";
 
 export default function () {
   const [formData, setFormData] = useState<FormFields>({
@@ -80,8 +80,8 @@ export default function () {
     <Box component="form" autoComplete="off" sx={{ width: "100%" }} onSubmit={handleSave}>
       <div style={{ display: "flex", justifyContent: "space-between" }}>
         <Typography variant="h4">Grabarr</Typography>
+        <CustomizedMenus />
       </div>
-      <Test />
 
       <div>
         <TextField

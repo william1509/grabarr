@@ -9,7 +9,7 @@ const themeOptions: ThemeOptions = {
     secondary: deepOrange,
     background: {
       default: "#333333",
-      paper: "#555555",
+      paper: "#EEEEEE",
     },
   },
   typography: {

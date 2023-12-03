@@ -1,5 +1,11 @@
 import { MediaRequest } from "./schemas";
 import { FormFields, MediaRepository, MediaResult, MessagePayload, MessageStatus, SearchResult } from "./types";
+import Utils from "./utils/storage-utils"
+
+let connection: FormFields = {
+  jellyseerrAddress: "",
+  jellyseerrKey: "",
+};
 
 chrome.contextMenus.removeAll();
 chrome.contextMenus.create({
@@ -7,12 +13,39 @@ chrome.contextMenus.create({
   id: "search",
   contexts: ["selection"],
 });
+chrome.contextMenus.onClicked.addListener(async (info, tab) => {
+  if (info.menuItemId == "search") {
+    if (info.selectionText === "" || connection.jellyseerrAddress === "" || connection.jellyseerrKey === "") {
+      return;
+    }
+    if (!info.selectionText?.trim()) {
+      return;
+    }
+    const params = {
+      query: info.selectionText?.trim().split(" ").join("+"),
+      page: "1",
+      language: "en",
+    };
+    const response = await fetch(`${connection.jellyseerrAddress}/api/v1/search?` + new URLSearchParams(params), {
+      method: "GET",
+      headers: headers(),
+    });
 
-let connection: FormFields = {
-  jellyseerrAddress: "",
-  jellyseerrKey: "",
-};
-let pagingOffset: string = "0";
+    console.log(`Sent request to ${connection.jellyseerrAddress}/api/v1/search?` + new URLSearchParams(params));
+    if (!response.ok) {
+      console.log("Looks like there was a problem. Status Code: " + response.status);
+    } else {
+      const data: SearchResult = await response.json();
+      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        if (tabs.length > 0 && tabs[0].id) {
+          chrome.tabs.sendMessage(tabs[0].id, { type: "show_popup", body: data }, (response) => {
+            console.log(response);
+          });
+        }
+      });
+    }
+  }
+});
 
 const headers = () => {
   return {
@@ -24,37 +57,6 @@ const headers = () => {
     "Sec-Fetch-Site": "same-origin",
   };
 };
-
-chrome.storage.sync.get("credentials", (data) => {
-  console.log("Initial data loaded", data);
-  connection = data["credentials"];
-});
-
-chrome.runtime.onStartup.addListener(async () => {
-  console.log("onStartup");
-  chrome.storage.sync.get("offset", (data) => {
-    console.log("Media paging offset found: ", data);
-    pagingOffset = data["offset"];
-  });
-  const params = {
-    take: "9999",
-    filter: "all",
-    sort: "added",
-    skip: pagingOffset || "0",
-  };
-  // fetch(`${connection.jellyseerrAddress}/api/v1/request`, {
-  const response = await fetch(`${connection.jellyseerrAddress}/api/v1/media` + new URLSearchParams(params), {
-    method: "GET",
-    headers: headers(),
-  });
-  console.log("Sent request to " + `${connection.jellyseerrAddress}/api/v1/request`);
-  if (response.status !== 200) {
-    console.log("Looks like there was a problem. Status Code: " + response.status);
-  } else {
-    const data: MediaRepository = await response.json();
-    console.log(data);
-  }
-});
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   switch (message.type) {
@@ -71,17 +73,19 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       getStatus(sendResponse);
       return true;
     }
+
     case "set_connection": {
-      chrome.storage.sync.set({ credentials: message.body }, () => {
-        console.log("Jellyseerr connection updated:", message.body);
-        connection = message.body;
-      });
-      getStatus(sendResponse);
+      setConnection(message.body, sendResponse);
       return true;
     }
 
     case "request": {
       sendRequest(message.body, sendResponse);
+      return true;
+    }
+
+    case "sync": {
+      synchronize(sendResponse);
       return true;
     }
 
@@ -105,15 +109,6 @@ const getStatus = async (sendResponse: (response?: MessagePayload) => void) => {
     console.log(`Looks like there was a problem. Status Code:  ${response.status}`);
   }
   sendResponse(payload);
-  //   .catch((err) => {
-  //     console.log("Fetch Error :-S", err);
-  //     let payload: MessagePayload = {
-  //       type: "status",
-  //       status: MessageStatus.ERROR,
-  //       body: connection,
-  //     };
-  //     sendResponse(payload);
-  //   });
 };
 
 const sendRequest = async (info: MediaResult, sendResponse: (response?: MessagePayload) => void) => {
@@ -150,36 +145,78 @@ const sendRequest = async (info: MediaResult, sendResponse: (response?: MessageP
   }
 };
 
-chrome.contextMenus.onClicked.addListener(async (info, tab) => {
-  if (info.menuItemId == "search") {
-    if (info.selectionText === "" || connection.jellyseerrAddress === "" || connection.jellyseerrKey === "") {
-      return;
-    }
-    if (!info.selectionText?.trim()) {
-      return;
-    }
-    const params = {
-      query: info.selectionText?.trim().split(" ").join("+"),
-      page: "1",
-      language: "en",
-    };
-    const response = await fetch(`${connection.jellyseerrAddress}/api/v1/search?` + new URLSearchParams(params), {
-      method: "GET",
-      headers: headers(),
-    });
+const synchronize = async (sendResponse: (response?: MessagePayload) => void) => {
+  const storage = await Utils.getChromeStorage(["availability", "offset"])
+  const mediaAvailability: Map<number, number> = storage.availability ?? new Map<number, number>();
+  const pagingOffset: number = storage.offset ?? 0;
 
-    console.log(`Sent request to ${connection.jellyseerrAddress}/api/v1/search?` + new URLSearchParams(params));
-    if (!response.ok) {
-      console.log("Looks like there was a problem. Status Code: " + response.status);
-    } else {
-      const data: SearchResult = await response.json();
-      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-        if (tabs.length > 0 && tabs[0].id) {
-          chrome.tabs.sendMessage(tabs[0].id, { type: "show_popup", body: data }, (response) => {
-            console.log(response);
-          });
-        }
-      });
-    }
+  if (pagingOffset !== 0 && mediaAvailability.size === pagingOffset) {
+    console.log("No need to sync: ", mediaAvailability);
+    sendResponse({
+      type: "sync",
+      status: MessageStatus.OK,
+      body: mediaAvailability,
+    });
+    return;
   }
-});
+  const params = {
+    take: "9999",
+    filter: "all",
+    sort: "added",
+    skip: pagingOffset.toString() || "0",
+  };
+  const url = `${connection.jellyseerrAddress}/api/v1/media?` + new URLSearchParams(params);
+  const response = await fetch(url, {
+    method: "GET",
+    headers: headers(),
+  });
+  console.log("Sent request to " + url);
+  if (!response.ok) {
+    console.log("Looks like there was a problem. Status Code: " + response.status);
+    sendResponse({
+      type: "sync",
+      status: MessageStatus.ERROR,
+      body: null,
+    });
+  } else {
+    const data: MediaRepository = await response.json();
+    console.log("data", data);
+    const newOffset = data.results.length + pagingOffset;
+
+    if (newOffset === pagingOffset) {
+      console.log("No new media found");
+      sendResponse({
+        type: "sync",
+        status: MessageStatus.OK,
+        body: data,
+      });
+      return;
+    }
+    
+    const mappedMedia = new Map<number, number>(data.results.map((obj) => [obj.tmdbId!, obj.status!]));
+    const newAvailability = new Map([...mediaAvailability, ...mappedMedia]);
+    await Utils.setChromeStorage({ offset: newOffset, availability: newAvailability });
+
+    sendResponse({
+      type: "sync",
+      status: MessageStatus.OK,
+      body: data,
+    });
+  }
+}
+
+const setConnection = async (conn: FormFields, sendResponse: (response?: MessagePayload) => void) => {
+  connection = conn;
+  await Utils.setChromeStorage({ credentials: connection });
+  getStatus(sendResponse);
+}
+
+const initialize = async () => {
+  const storage = await Utils.getChromeStorage(["credentials"]);
+  if (storage.credentials) {
+    connection = storage.credentials;
+    synchronize((response) => {});
+  }
+}
+
+initialize();
