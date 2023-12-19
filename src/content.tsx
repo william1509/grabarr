@@ -27,7 +27,6 @@ const handleClickOutside = (event: MouseEvent, element: Node) => {
 };
 
 chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
-  console.log("Received message from background script!", message);
   switch (message.type) {
     case "show_popup":
       const container = document.createElement("div");

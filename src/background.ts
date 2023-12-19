@@ -1,6 +1,6 @@
 import { MediaRequest } from "./schemas";
 import { FormFields, MediaRepository, MediaResult, MessagePayload, MessageStatus, SearchResult } from "./types";
-import Utils from "./utils/storage-utils"
+import Utils from "./utils/storage-utils";
 
 let connection: FormFields = {
   jellyseerrAddress: "",
@@ -38,9 +38,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
       const data: SearchResult = await response.json();
       chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
         if (tabs.length > 0 && tabs[0].id) {
-          chrome.tabs.sendMessage(tabs[0].id, { type: "show_popup", body: data }, (response) => {
-            console.log(response);
-          });
+          chrome.tabs.sendMessage(tabs[0].id, { type: "show_popup", body: data }, (response) => {});
         }
       });
     }
@@ -50,7 +48,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 const headers = () => {
   return {
     "X-Api-Key": `${connection.jellyseerrKey}`,
-    Accept: "application/json, text/plain, */*",
+    "Accept": "application/json, text/plain, */*",
     "Content-Type": "application/json;charset=UTF-8",
     "Sec-Fetch-Dest": "empty",
     "Sec-Fetch-Mode": "no-cors",
@@ -89,10 +87,25 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       return true;
     }
 
+    case "get_media_availability": {
+      getMediaAvailability(sendResponse);
+      return true;
+    }
+
     default:
-      console.log("unknown message type", message.type);
+      console.log("unknown message type", message.type);7
   }
 });
+
+const getMediaAvailability = async (sendResponse: (response?: MessagePayload) => void) => {
+  const availability = await Utils.getChromeStorage<[number, number][]>("availability");
+  let payload: MessagePayload = {
+    type: "get_media_availability",
+    status: MessageStatus.OK,
+    body: availability,
+  };
+  sendResponse(payload);
+};
 
 const getStatus = async (sendResponse: (response?: MessagePayload) => void) => {
   const response = await fetch(`${connection.jellyseerrAddress}/api/v1/status`, {
@@ -142,20 +155,20 @@ const sendRequest = async (info: MediaResult, sendResponse: (response?: MessageP
       body: data,
     };
     sendResponse(payload);
+    
   }
 };
 
 const synchronize = async (sendResponse: (response?: MessagePayload) => void) => {
-  const storage = await Utils.getChromeStorage(["availability", "offset"])
-  const mediaAvailability: Map<number, number> = storage.availability ?? new Map<number, number>();
-  const pagingOffset: number = storage.offset ?? 0;
+  const availability: Map<number, number> = await Utils.getChromeStorage<Map<number, number>>("availability") ?? new Map();
+  const pagingOffset: number = await Utils.getChromeStorage<number>("offset") ?? 0;
 
-  if (pagingOffset !== 0 && mediaAvailability.size === pagingOffset) {
-    console.log("No need to sync: ", mediaAvailability);
+  if (pagingOffset !== 0 && availability.size === pagingOffset) {
+    console.log("No need to sync: ", availability);
     sendResponse({
       type: "sync",
       status: MessageStatus.OK,
-      body: mediaAvailability,
+      body: availability,
     });
     return;
   }
@@ -180,7 +193,6 @@ const synchronize = async (sendResponse: (response?: MessagePayload) => void) =>
     });
   } else {
     const data: MediaRepository = await response.json();
-    console.log("data", data);
     const newOffset = data.results.length + pagingOffset;
 
     if (newOffset === pagingOffset) {
@@ -192,10 +204,11 @@ const synchronize = async (sendResponse: (response?: MessagePayload) => void) =>
       });
       return;
     }
-    
+
     const mappedMedia = new Map<number, number>(data.results.map((obj) => [obj.tmdbId!, obj.status!]));
-    const newAvailability = new Map([...mediaAvailability, ...mappedMedia]);
-    await Utils.setChromeStorage({ offset: newOffset, availability: newAvailability });
+    const newAvailability = new Map([...availability, ...mappedMedia]);
+    await Utils.setChromeStorage({ availability: [...newAvailability] });
+    await Utils.setChromeStorage({ offset: newOffset });
 
     sendResponse({
       type: "sync",
@@ -203,20 +216,20 @@ const synchronize = async (sendResponse: (response?: MessagePayload) => void) =>
       body: data,
     });
   }
-}
+};
 
 const setConnection = async (conn: FormFields, sendResponse: (response?: MessagePayload) => void) => {
   connection = conn;
   await Utils.setChromeStorage({ credentials: connection });
   getStatus(sendResponse);
-}
+};
 
 const initialize = async () => {
-  const storage = await Utils.getChromeStorage(["credentials"]);
-  if (storage.credentials) {
-    connection = storage.credentials;
+  const credentials = await Utils.getChromeStorage<FormFields>("credentials");
+  if (credentials) {
+    connection = credentials;
     synchronize((response) => {});
   }
-}
+};
 
 initialize();

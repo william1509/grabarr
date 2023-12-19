@@ -6,8 +6,9 @@ import FileDownloadIcon from "@mui/icons-material/FileDownload";
 import { useTheme } from "@emotion/react";
 import { MessagePayload } from "../../types";
 import { MovieResult } from "../../schemas";
+import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 
-const MovieCard: React.FC<{ item: MovieResult }> = (props) => {
+const MovieCard: React.FC<{ item: MovieResult; mediaAvailability: number }> = (props) => {
   const theme: ThemeOptions = useTheme();
   // const [mediaAvailability, setMediaAvailability] = React.useState<RequestResponse[]>([]);
 
@@ -15,6 +16,23 @@ const MovieCard: React.FC<{ item: MovieResult }> = (props) => {
     chrome.runtime.sendMessage({ type: "request", body: item }, (response: MessagePayload) => {
       console.log("Received message from background script!", response);
     });
+  };
+
+  const getMediaButton = (item: MovieResult) => {
+    switch (props.mediaAvailability) {
+      case 0:
+      case 1:
+        return (
+          <IconButton color="primary" aria-label={`info about ${item.title}`} onClick={() => downloadClicked(item)}>
+            <FileDownloadIcon />
+          </IconButton>
+        );
+      case 2:
+      case 3:
+      case 4:
+      case 5:
+        return <CheckCircleOutlineIcon />;
+    }
   };
 
   return (
@@ -55,13 +73,7 @@ const MovieCard: React.FC<{ item: MovieResult }> = (props) => {
         }
         position="below"
         style={{ width: 154 }}
-        actionIcon={
-          <div style={{ display: "flex", height: "100%", alignItems: "center" }}>
-            <IconButton color="primary" aria-label={`info about ${props.item.title}`} onClick={() => downloadClicked(props.item)}>
-              <FileDownloadIcon />
-            </IconButton>
-          </div>
-        }
+        actionIcon={<div style={{ display: "flex", height: "100%", alignItems: "center" }}>{getMediaButton(props.item)}</div>}
       />
     </ImageListItem>
   );

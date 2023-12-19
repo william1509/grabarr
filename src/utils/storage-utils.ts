@@ -1,16 +1,20 @@
 class Utils {
-  static getChromeStorage = (keys: string[]): Promise<{ [key: string]: any }> => {
+  static getChromeStorage = <T>(key: string): Promise<T> => {
     return new Promise((resolve) => {
-      chrome.storage.sync.get(keys, (result) => {
-        console.log(`getChromeStorage keys = ${JSON.stringify(keys)} data = ${JSON.stringify(result)}`)
-        resolve(result);
+      chrome.storage.session.get(key, (result: { [key: string]: T }) => {
+        let data = result[key];
+        if (data instanceof Map) {
+          data = new Map(data) as T;
+        }
+        console.log(`getChromeStorage keys = ${key} data = ${JSON.stringify(data)}`)
+        resolve(data);
       });
     });
   };
 
-  static setChromeStorage = (data: { [key: string]: any }): Promise<void> => {
+  static setChromeStorage = <T>(data: { [key: string]: T }): Promise<void> => {
     return new Promise((resolve) => {
-      chrome.storage.sync.set(data, () => {
+      chrome.storage.session.set(data, () => {
         console.log(`setChromeStorage data = ${JSON.stringify(data)}`)
         resolve();
       });

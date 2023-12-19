@@ -9,19 +9,21 @@ import MovieCard from "../movie-card/movie-card";
 import TvShowCard from "../tvshow-card/tvshow-card";
 import "./media-selection.css";
 import { MovieResult, TvResult } from "../../schemas";
+import React from "react";
 
 const MediaSelection: React.FC<{ item: SearchResult }> = (props) => {
   const theme: ThemeOptions = useTheme();
-  // const [mediaAvailability, setMediaAvailability] = React.useState<RequestResponse[]>([]);
+  const [mediaAvailability, setMediaAvailability] = React.useState<Map<number, number>>(new Map<number, number>());
 
-  const downloadClicked = (item: MediaResult) => {
-    chrome.runtime.sendMessage(
-      { type: "request", body: item },
-      (response: MessagePayload) => {
-        console.log("Received message from background script!", response);
+  React.useEffect(() => {
+    chrome.runtime.sendMessage({ type: "get_media_availability" }, (response: MessagePayload) => {
+      const mediaAvailability: [number, number][] = response.body;
+      if (mediaAvailability === undefined || mediaAvailability === null) {
+        return;
       }
-    );
-  };
+      setMediaAvailability(new Map(mediaAvailability));
+    });
+  }, []);
 
   return (
     <Paper
@@ -46,7 +48,7 @@ const MediaSelection: React.FC<{ item: SearchResult }> = (props) => {
             case "tv":
               return <TvShowCard key={item.id} item={item as TvResult} />;
             case "movie":
-              return <MovieCard key={item.id} item={item as MovieResult} />;
+              return <MovieCard key={item.id} item={item as MovieResult} mediaAvailability={mediaAvailability.get((item as MovieResult).mediaInfo?.tmdbId ?? 0) ?? 0} />;
             default:
               console.log("Unknown media type", item);
           }
