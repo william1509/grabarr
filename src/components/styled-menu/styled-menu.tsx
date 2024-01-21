@@ -6,6 +6,7 @@ import EditIcon from '@mui/icons-material/Edit';
 import SyncIcon from '@mui/icons-material/Sync';
 import SettingsIcon from '@mui/icons-material/Settings';
 import { MessagePayload } from '../../types';
+import Utils from '../../utils/utils';
 const StyledMenu = (props: MenuProps) => (
   <Menu
     elevation={0}
@@ -31,22 +32,21 @@ const CustomizedMenus: React.FC = () => {
     setAnchorEl(null);
   };
 
-  const handleSync = () => {    
+  const handleSyncNew = async () => {    
     setAnchorEl(null);
-    chrome.runtime.sendMessage({ type: "sync" }, (response: MessagePayload) => {
-        
-    });
+    await Utils.sendRuntimeMessage({ type: "sync_new" })
+  };
+
+  const handleSyncAll = async () => {    
+    setAnchorEl(null);
+    await Utils.sendRuntimeMessage({ type: "sync_all" })
+
   };
 
   return (
     <div>
       <Button
-        // aria-controls={open ? 'demo-customized-menu' : undefined}
-        // aria-haspopup="true"
-        // aria-expanded={open ? 'true' : undefined}
-        // variant="contained"
         disableElevation
-        // color='primary'
         onClick={handleClick}
       >
         <SettingsIcon />
@@ -56,9 +56,13 @@ const CustomizedMenus: React.FC = () => {
         open={open}
         onClose={handleClose}
       >
-        <MenuItem onClick={handleSync} disableRipple>
+        <MenuItem onClick={handleSyncNew} disableRipple>
           <SyncIcon />
-          Sync with Jellyseerr
+          Sync new
+        </MenuItem>
+        <MenuItem onClick={handleSyncAll} disableRipple>
+          <SyncIcon />
+          Sync all
         </MenuItem>
       </StyledMenu>
     </div>

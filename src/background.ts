@@ -1,6 +1,6 @@
 import { MediaRequest } from "./schemas";
 import { FormFields, MediaRepository, MediaResult, MessagePayload, MessageStatus, SearchResult } from "./types";
-import Utils from "./utils/storage-utils";
+import Utils from "./utils/utils";
 
 let connection: FormFields = {
   jellyseerrAddress: "",
@@ -15,9 +15,21 @@ chrome.contextMenus.create({
 });
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   if (info.menuItemId == "search") {
-    if (info.selectionText === "" || connection.jellyseerrAddress === "" || connection.jellyseerrKey === "") {
+    if (info.selectionText === "") {
       return;
     }
+    if (connection.jellyseerrAddress === "" || connection.jellyseerrKey === "") {
+      const request: MessagePayload = {
+        type: "show_popup",
+        status: MessageStatus.ERROR,
+        body: {},
+      };
+      Utils.sendTabMessage(request);
+      return;
+    }
+
+
+
     if (!info.selectionText?.trim()) {
       return;
     }
@@ -36,11 +48,12 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
       console.log("Looks like there was a problem. Status Code: " + response.status);
     } else {
       const data: SearchResult = await response.json();
-      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-        if (tabs.length > 0 && tabs[0].id) {
-          chrome.tabs.sendMessage(tabs[0].id, { type: "show_popup", body: data }, (response) => {});
-        }
-      });
+      const request: MessagePayload = {
+        type: "show_popup",
+        status: MessageStatus.OK,
+        body: data,
+      };
+      await Utils.sendTabMessage(request);
     }
   }
 });
@@ -56,7 +69,7 @@ const headers = () => {
   };
 };
 
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((message: MessagePayload, sender, sendResponse) => {
   switch (message.type) {
     case "get_connection": {
       const response: MessagePayload = {
@@ -82,8 +95,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       return true;
     }
 
-    case "sync": {
-      synchronize(sendResponse);
+    case "sync_new": {
+      synchronize(sendResponse, false);
+      return true;
+    }
+
+    case "sync_all": {
+      synchronize(sendResponse, true);
       return true;
     }
 
@@ -128,7 +146,6 @@ const sendRequest = async (info: MediaResult, sendResponse: (response?: MessageP
   const body = {
     mediaType: info.mediaType,
     mediaId: info.id,
-    tvdbId: 0,
     seasons: [],
     is4k: false,
     serverId: 0,
@@ -138,8 +155,8 @@ const sendRequest = async (info: MediaResult, sendResponse: (response?: MessageP
     userId: 0,
   };
 
-  // fetch(`${connection.jellyseerrAddress}/api/v1/request`, {
-  const response: Response = await fetch(`https://8078026c-8a0d-4d65-975b-6340f2aae1cb.mock.pstmn.io/api/v1/request`, {
+  const response: Response = await fetch(`${connection.jellyseerrAddress}/api/v1/request`, {
+  // const response: Response = await fetch(`https://8078026c-8a0d-4d65-975b-6340f2aae1cb.mock.pstmn.io/api/v1/request`, {
     method: "POST",
     body: JSON.stringify(body),
     headers: headers(),
@@ -159,9 +176,13 @@ const sendRequest = async (info: MediaResult, sendResponse: (response?: MessageP
   }
 };
 
-const synchronize = async (sendResponse: (response?: MessagePayload) => void) => {
+const synchronize = async (sendResponse: (response?: MessagePayload) => void, syncAll: boolean) => {
   const availability: Map<number, number> = await Utils.getChromeStorage<Map<number, number>>("availability") ?? new Map();
-  const pagingOffset: number = await Utils.getChromeStorage<number>("offset") ?? 0;
+  var pagingOffset: number = await Utils.getChromeStorage<number>("offset") ?? 0;
+  if (syncAll) {
+    console.log("Sync all");
+    pagingOffset = 0;
+  }
 
   if (pagingOffset !== 0 && availability.size === pagingOffset) {
     console.log("No need to sync: ", availability);
@@ -228,7 +249,7 @@ const initialize = async () => {
   const credentials = await Utils.getChromeStorage<FormFields>("credentials");
   if (credentials) {
     connection = credentials;
-    synchronize((response) => {});
+    synchronize((response) => {}, false);
   }
 };
 

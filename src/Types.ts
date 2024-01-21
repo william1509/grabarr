@@ -6,9 +6,9 @@ export interface FormFields {
 }
 
 export interface MessagePayload {
-  type: string;
-  status: MessageStatus;
-  body: any;
+  type?: string;
+  status?: MessageStatus;
+  body?: any;
 }
 
 export enum MessageStatus {

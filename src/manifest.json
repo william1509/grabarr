@@ -31,11 +31,11 @@
       "js": ["src/content.tsx"] 
     }
   ],
-  "contextMenus": [
+  "web_accessible_resources": [
     {
-      "id": "myContextMenu",
-      "title": "My Context Menu Option",
-      "contexts": ["selection"]
+      "resources": [ "ext_popup.png" ],
+      "matches": [ "*://*/*" ]
     }
   ]
+
 }

@@ -6,6 +6,8 @@ import theme from "./theme";
 import createCache from "@emotion/cache";
 import { CacheProvider } from "@emotion/react";
 import { MessagePayload, MessageStatus } from "./types";
+import Utils from "./utils/utils";
+import ConnectionError from "./pages/connection-error/connection-error";
 
 let mousePosition = { x: 0, y: 0 };
 document.addEventListener("mousemove", (e: MouseEvent) => {
@@ -25,6 +27,16 @@ const handleClickOutside = (event: MouseEvent, element: Node) => {
     document.body.removeChild(element);
   }
 };
+
+const getComponent = (response: MessagePayload) => {
+  console.log(response)
+  switch (response.status) {
+    case MessageStatus.OK:
+      return <MediaSelection item={response.body} />;
+    case MessageStatus.ERROR:
+      return <ConnectionError />;
+  }
+}
 
 chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
   switch (message.type) {
@@ -58,18 +70,12 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
           <CacheProvider value={cache}>
             <ThemeProvider theme={theme}>
               <CssBaseline />
-              <MediaSelection item={message.body} />
+              {getComponent(message)}
             </ThemeProvider>
           </CacheProvider>
         </React.StrictMode>
       );
       document.body.appendChild(container);
-      const response: MessagePayload = {
-        type: "show_popup",
-        status: MessageStatus.OK,
-        body: "",
-      };
-      sendResponse(response);
       break;
     default:
       console.log("unknown message type", message.type);

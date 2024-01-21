@@ -51,6 +51,9 @@ export default function () {
           case MessageStatus.OK:
             setConnectSuccessful(true);
             setErrors({});
+            setTimeout(() => {
+              setConnectSuccessful(false);
+            }, 5000);
             break;
           case MessageStatus.ERROR:
             errors.jellyseerrAddress = "Jellyseerr address is invalid";
@@ -110,9 +113,11 @@ export default function () {
           <Button variant="contained" type="submit">
             Save
           </Button>
-          <Zoom className="check-button" in={connectSuccessful}>
-            {icon}
-          </Zoom>
+          {connectSuccessful && (
+            <Button>
+                {icon}
+            </Button>
+          )}
         </Stack>
       </div>
     </Box>
